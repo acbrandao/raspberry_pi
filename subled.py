@@ -13,6 +13,10 @@ import struct
 import random
 from threading import Timer,Thread,Event
 import schedule   # install with:   pip install schedule
+import json
+import socket
+import re
+import urllib2 
 
 # MQTT Specific
 mqtt_broker_ip = "localhost"		# Local MQTT broker
@@ -22,9 +26,57 @@ mqtt_pass = ""			# Local MQTT password
 mqtt_topic = "sensor/door"		# Local MQTT topic to monitor
 localTimeOut = 120			# Local MQTT session timeout
 
-
 #Uncomment to rotate the text
 scrollphathd.rotate(180)
+
+#cache HTML scrape to be nice on network
+htmlText_cached=None
+htmlText_cached_time=None
+html_cache_expire_time =180   #number of seconds to hold cache
+html_last_url=None
+
+def scrape_url(url, start_tag,end_tag):
+	global htmlText_cached,htmlText_cached_time,html_cache_expire_time,html_last_url
+	result = ""
+	base_url = url
+
+	n2=int(round(time.time() ))
+	if  ( htmlText_cached_time  is  None )  or  ( n2 - htmlText_cached_time >  html_cache_expire_time ) or  (html_last_url <> base_url):
+		print " HTML from WEB"
+		htmlText =  urllib2.urlopen(base_url).read()
+		htmlText_cached =htmlText
+		htmlText_cached_time=int(round(time.time() ))
+		html_last_url=base_url
+	else:  
+		print " HTML from CACHE Text"
+		htmlText=htmlText_cached
+
+	try:
+		result =re.findall(start_tag+'(.*?)'+end_tag, htmlText)[0]
+	except:
+		print "Invalid No Match found"
+		result ="Invalid No Match found"
+	#print 'Searching between '+start_tag+' and '+end_tag+' on urL: ' + url 
+	return result
+
+
+
+def getWeather():
+	temp = scrape_url("http://forecast.weather.gov/MapClick.php?lat=40.732&lon=-74.1742#.Won5xainE2w",'<p class="myforecast-current-lrg">','</p>')
+	temp=temp.replace('&deg;',' ')
+	print 'Newark Weather: [ ' + temp + " ]"	
+	scroll(" Newark: "+temp)
+
+	return None
+
+
+def getExchangeRate():
+
+	usdeur = scrape_url("https://www.bloomberg.com/quote/USDEUR:CUR",'<div class="price">','</div>')
+	print 'EURO->USD: [ ' + usdeur + " ]"	
+	scroll(" 1 USD= "+ ("%0.2f" % float(usdeur) ) + " EUR ")
+	return None
+
 
 ##############################################
 #timer class to handle timer events in a perate thread
@@ -53,22 +105,8 @@ def clocktick():
 	scrollphathd.show()
 	return None
 	
-def plasma():
-	i=0
-	i += 2
-	s = math.sin(i / 50.0) * 2.0 + 6.0
 
-	for x in range(0, 17):
-	  for y in range(0, 7):
-		v = 0.3 + (0.3 * math.sin((x * s) + i / 4.0) * math.cos((y * s) + i / 4.0))
-
-		scrollphathd.pixel(x, y, v)
-
-	time.sleep(0.01)
-	scrollphathd.show()
-	return None
-
-def scroll(textmsg="???",bright=0.3):
+def scroll(textmsg="???",bright=0.3,speed=0.04):
 	global scrollphathd
 	#  Clear buffer
 	# Reset the animation
@@ -79,7 +117,7 @@ def scroll(textmsg="???",bright=0.3):
 	# Keep track of the X and Y position for the rewind effect
 	pos_x = 0
 
-	textmsg=textmsg+"..."  # append 3 spaces tp message  to prevent wrapping of start
+	textmsg=" "+textmsg+"         ."  # append 3 spaces tp message  to prevent wrapping of start
 	print "Scrolling  %s. size: %d" % (textmsg , len(textmsg  ) )
 	scrollphathd.write_string(textmsg, x=0, y=0, font=font5x7, brightness=bright)
 	
@@ -88,13 +126,23 @@ def scroll(textmsg="???",bright=0.3):
         for y in range(msgpixels):
             scrollphathd.scroll(1, 0)
             pos_x += 1
-            time.sleep(.05)
+            time.sleep(speed)
             scrollphathd.show()
 
 	#time.sleep(0.05)
 	scrollphathd.clear()  # so we can rebuild it
+	scrollphathd.show()
 	return
 
+def show(textmsg="???",bright=0.5):
+	global scrollphathd
+	 #  Clear buffer
+	scrollphathd.clear()  # so we can rebuild it
+	scrollphathd.show()
+	scrollphathd.write_string(textmsg, x=0, y=0, font=font5x7,brightness=bright)
+	scrollphathd.show()
+
+	return None
 
 def fade(textmsg="???"):
         global scrollphathd
@@ -114,14 +162,17 @@ def fade(textmsg="???"):
         return
 
 
+
+	
+
 def on_connect(client, userdata, flags, rc):
 	global mqtt_topic
 	print "onConnect with result code ..."
 	print("rc: " + str(rc))
 	if  (rc==0):
-	  scroll("RDY",0.2)
+	  show("RDY",0.2)
 	else:
-	  scroll(str(rc),0.1 )
+	  show(str(rc),0.1 )
 	
 	client.subscribe(mqtt_topic)
 
@@ -132,7 +183,7 @@ def on_message(client, obj, msg):
 	if (message=="0"):
 		fade("CLOSE")
 	else:
-		scroll("OPEN DOOR",0.5)
+		show("OPN",0.5)
 	return
 	
 def on_publish(client, obj, mid):
@@ -162,8 +213,7 @@ def get_ip_address(ifname):
 ########################
  
 if "__main__" == __name__:
-# Set timer
- 
+ 	
 	print timenow()+"Starting MQTT Subscriber main... "
 	client = mqtt.Client("piZeroLCD")  #Client MQTT object
 	
@@ -183,7 +233,7 @@ if "__main__" == __name__:
 	print "Localhost IP adress:"+ip_address
 	# Once we have told the client to connect, let the client object run itself
 	# client.loop_forever()   this funciton is blocking
-	scroll("IP:"+ip_address)
+	scroll(" IP:"+ip_address,0.3,0.02)
 
 	client.connect(mqtt_broker_ip, mqtt_port)
 
@@ -195,8 +245,9 @@ if "__main__" == __name__:
 	client.loop_start()	
      
 	# see schedule for examples https://pypi.python.org/pypi/schedule
-	schedule.every(60).seconds.do(hournow)
-	
+	schedule.every().hour.do(hournow)
+	schedule.every(30).minutes.do(getWeather)
+	schedule.every().hour.do(getExchangeRate)
     
 	while True:
 		schedule.run_pending()
