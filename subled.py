@@ -192,10 +192,10 @@ if "__main__" == __name__:
 	client.subscribe(mqtt_topic)
 	
 	#start the MQTT lient loop
-	#client.loop_start()	
+	client.loop_start()	
      
 	# see schedule for examples https://pypi.python.org/pypi/schedule
-	schedule.every(2).seconds.do(clocktick)
+	schedule.every(60).seconds.do(hournow)
 	
     
 	while True:
