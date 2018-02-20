@@ -37,7 +37,14 @@ html_cache_expire_time =180   #number of seconds to hold cache
 html_last_url=None
 
 #Quiet Hours time periods in which alerts will not show
+quiet_start=datetime.time(10,30,00)
+quiet_end =datetime.time(06,30,00)
 
+def in_between(now, start, end):
+    if start <= end:
+        return start <= now < end
+    else: # over midnight e.g., 23:30-04:15
+        return start <= now or now < end
 
 
 def scrape_url(url, start_tag,end_tag):
@@ -232,8 +239,16 @@ def get_ip_address(ifname):
  
 if "__main__" == __name__:
 
-
+	now=datetime.datetime.now()
+	this_time=now.time()
+	
+	print("Now:"+this_time.strftime("%H:%M:%S") )
+	print("Start:"+quiet_start.strftime("%H:%M:%S") )
+	print("End:"+quiet_end.strftime("%H:%M:%S") )
+	print("Quiet" if in_between( this_time, quiet_start,quiet_end ) else "day")
  	
+
+
 	print timenow()+"Starting MQTT Subscriber main... "
 	client = mqtt.Client("piZeroLCD")  #Client MQTT object
 	
