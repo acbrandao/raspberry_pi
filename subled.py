@@ -25,6 +25,7 @@ mqtt_user = ""			# Local MQTT user
 mqtt_pass = ""			# Local MQTT password
 mqtt_topic = "sensor/door"		# Local MQTT topic to monitor
 localTimeOut = 120			# Local MQTT session timeout
+mqtt_timer = int(round(time.time() ))  #times mqtt between reuqsts
 
 #Uncomment to rotate the text
 scrollphathd.rotate(180)
@@ -34,6 +35,10 @@ htmlText_cached=None
 htmlText_cached_time=None
 html_cache_expire_time =180   #number of seconds to hold cache
 html_last_url=None
+
+#Quiet Hours time periods in which alerts will not show
+
+
 
 def scrape_url(url, start_tag,end_tag):
 	global htmlText_cached,htmlText_cached_time,html_cache_expire_time,html_last_url
@@ -161,36 +166,49 @@ def fade(textmsg="???"):
         #time.sleep(0.05)
         return
 
-
-
-	
-
 def on_connect(client, userdata, flags, rc):
-	global mqtt_topic
-	print "onConnect with result code ..."
+	global mqtt_topic,mqtt_timer
+	now=int(round(time.time() ))
+	elapsed= (now-mqtt_timer)
+	print "onConnect with result code ..."+str(elapsed)+"s"
 	print("rc: " + str(rc))
 	if  (rc==0):
+	  client.connected_flag=True #set flag
 	  show("RDY",0.2)
 	else:
 	  show(str(rc),0.1 )
 	
+	mqtt_timer=int(round(time.time() ))
 	client.subscribe(mqtt_topic)
 
 def on_message(client, obj, msg):
-	global message
-	print("Rcvd: "+ msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+	global message,mqtt_timer
+
+	print("on_message Rcvd: "+ msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
 	message = msg.payload
-	if (message=="0"):
-		fade("CLOSE")
+
+	#lts handle the diffferent payloads
+
+	if msg.topic=="sensor/door":
+			if (message=="0"):
+				fade("CLOSE")
+			else:
+				show("OPN",0.5)
+
+	elif msg.topic=="sensor/running_time":
+			scroll(message,0.5)
 	else:
-		show("OPN",0.5)
+		print("No Topic/Message hanlder available")
+		fade("OK")
+
+	mqtt_timer=int(round(time.time() ))
 	return
 	
 def on_publish(client, obj, mid):
-    print("mid: " + str(mid))
+    print("on_publish mid: " + str(mid))
 
 def on_subscribe(client, obj, mid, granted_qos):
-	print("Subscribed: " + str(mid) + " QoS:" + str(granted_qos))
+	print("on_subscribe: " + str(mid) + " QoS:" + str(granted_qos))
 
 def on_log(client, obj, level, string):
     print(string)
@@ -213,6 +231,8 @@ def get_ip_address(ifname):
 ########################
  
 if "__main__" == __name__:
+
+
  	
 	print timenow()+"Starting MQTT Subscriber main... "
 	client = mqtt.Client("piZeroLCD")  #Client MQTT object
@@ -233,9 +253,10 @@ if "__main__" == __name__:
 	print "Localhost IP adress:"+ip_address
 	# Once we have told the client to connect, let the client object run itself
 	# client.loop_forever()   this funciton is blocking
-	scroll(" IP:"+ip_address,0.3,0.02)
+	scroll(" IP:"+ip_address,0.2,0.02)
 
-	client.connect(mqtt_broker_ip, mqtt_port)
+   #connect(host, port=1883, keepalive=60, bind_address="")
+	client.connect(mqtt_broker_ip, mqtt_port, 0)
 
 	#subscribe
 	print "Subscribing to :"+mqtt_topic
@@ -248,7 +269,10 @@ if "__main__" == __name__:
 	schedule.every().hour.do(hournow)
 	schedule.every(30).minutes.do(getWeather)
 	schedule.every().hour.do(getExchangeRate)
-    
+
+	hournow()
+	
+
 	while True:
 		schedule.run_pending()
 		client.loop(.1)  #blocks for 100ms
