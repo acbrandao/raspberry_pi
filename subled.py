@@ -350,8 +350,8 @@ def on_message(client, obj, msg):
 		source=message	
 
 	else:
-		print("No Topic/Message hanlder available")
-		scroll("topic? "+msg.topic,0.2)
+		print("No Topic/Message handler available")
+		#show("???"+msg.topic,0.2)
 
 	writedb_log(msg.topic,message,source)
 	mqtt_timer=int(round(time.time() ))
