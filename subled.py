@@ -238,7 +238,7 @@ def show(textmsg="???",bright=0.5):
 
 	return None
 	
-def glow(textmsg="???",bright=0.5):
+def glow(textmsg="???",bright=0.5, time_secs=10):
 	global scrollphathd
 	
 	#if quiet hours do not display
@@ -248,7 +248,11 @@ def glow(textmsg="???",bright=0.5):
 	 #  Clear buffer
 	scrollphathd.clear()  # so we can rebuild it
 	scrollphathd.show()
-	for glows in range(1,3,1):
+
+	endTime = datetime.datetime.now() + datetime.timedelta(seconds=time_secs)
+	while True:
+		if datetime.datetime.now() >= endTime:
+			break
 		for x in range(5,0,-1):
 			brite=0.1*x
 			scrollphathd.write_string(textmsg, x=0, y=0, font=font5x7,brightness=brite)
