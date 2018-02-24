@@ -102,6 +102,7 @@ def setup_db(dbname='log.db'):
 	db=None
 	if os.path.isfile(dbname)==True: #file exists open it
 		db = sqlite3.connect(dbname)
+		db.commit()
 		#open the database
 	else:
 		# Get a cursor object
@@ -110,7 +111,7 @@ def setup_db(dbname='log.db'):
 		cursor.execute('''
 		CREATE TABLE [event] (
 			[id] INTEGER  NOT NULL PRIMARY KEY AUTOINCREMENT,
-			[timestamp] VARCHAR(64)  NULL,
+			[time] DATETIME   NULL,
 			[topic] VARCHAR(64)  NULL,
 			[payload] VARCHAR(128)  NULL,
 			[source] VARCHAR(32)  NULL
@@ -118,6 +119,7 @@ def setup_db(dbname='log.db'):
 		''')
 		db.commit()
 		#create a new database
+		
 	return db
 	
 def writedb_log(topic,payload,source):
@@ -126,17 +128,18 @@ def writedb_log(topic,payload,source):
 		db = setup_db()  #create or OPEN Existing database
 		cursor = db.cursor()
 
-		# Insert user 1
-		cursor.execute('''INSERT INTO event (timestamp,topic,payload,source)
-					  VALUES(?,?,?,?)''', ('CURRENT_TIMESTAMP',topic,payload,source))
-		print('First user inserted')
+		# Insert record
+		ts = time.gmtime()
+		cursor.execute('''INSERT INTO event (time,topic,payload,source)
+					  VALUES(?,?,?,?)''', (time.strftime("%Y-%m-%d %H:%M:%S", ts),topic,payload,source))
+		print 'Inserted Record:'
 		id = cursor.lastrowid
 		print('Last row id: %d' % id)
 
 		db.commit()
 	# Catch the exception
 	except Exception as e:
-		  print 'Database run-time error:', e
+		  print 'DATABASE ERROR :', e
 		
 	finally:
 		# Close the db connection
