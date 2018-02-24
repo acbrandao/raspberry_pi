@@ -38,9 +38,9 @@ htmlText_cached_time=None
 html_cache_expire_time =180   #number of seconds to hold cache
 html_last_url=None
 
-#Quiet Hours time periods in which alerts will not show
+#Quiet Hours time periods in which alerts will not Scroll oh ScrollPHAT
 quiet_start=datetime.time(10,30,00)
-quiet_end =datetime.time(00,8,00)
+quiet_end =datetime.time(06,30,00)
 
 #database
 db=None
@@ -175,11 +175,11 @@ def clocktick():
 	return None
 	
 
-def scroll(textmsg="???",bright=0.3,speed=0.04):
+def scroll(textmsg="???",bright=0.3,speed=0.04, ignore_quiet_time=False):
 	global scrollphathd
 	
 	#if quiet hours do not display
-	if is_quiet_time():
+	if is_quiet_time() and ignore_quiet_time==False:
 		return None
 	
 	#  Clear buffer
@@ -383,7 +383,7 @@ if "__main__" == __name__:
 	print "Localhost IP adress:"+ip_address
 	# Once we have told the client to connect, let the client object run itself
 	# client.loop_forever()   this funciton is blocking
-	scroll(" IP:"+ip_address,0.2,0.02)
+	scroll(" IP:"+ip_address,0.2,0.02,True)  #Display always regardless of quiet time
 	
 
 
