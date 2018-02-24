@@ -436,6 +436,9 @@ if "__main__" == __name__:
 	scroll(" IP:"+ip_address,0.2,0.02,True)  #Display always regardless of quiet time
 	
 
+	calendardate()
+	hournow()
+
 
 	print "Connecting to MQTT broker at ", mqtt_broker_ip + "\nPort: " + str(mqtt_port)
 	
@@ -456,6 +459,7 @@ if "__main__" == __name__:
 	schedule.every().day.at("12:00").do(hournow)
 	schedule.every().day.at("12:01").do(calendardate)
 	schedule.every().day.at("15:00").do(hournow)
+ 	schedule.every().day.at("16:00").do(hournow)
 	schedule.every().day.at("17:00").do(hournow)
 	schedule.every().day.at("19:00").do(hournow)
 	
