@@ -39,7 +39,7 @@ html_cache_expire_time =180   #number of seconds to hold cache
 html_last_url=None
 
 #Quiet Hours time periods in which alerts will not Scroll oh ScrollPHAT
-quiet_start=datetime.time(10,30,00)
+quiet_start=datetime.time(20,30,00)
 quiet_end =datetime.time(06,30,00)
 
 #database
@@ -71,8 +71,8 @@ def scrape_url(url, start_tag,end_tag):
 	try:
 		result =re.findall(start_tag+'(.*?)'+end_tag, htmlText)[0]
 	except:
-		print "Invalid No Match found"
-		result ="Invalid No Match found"
+		print "No Matches"
+		result ="No Matches	"
 	#print 'Searching between '+start_tag+' and '+end_tag+' on urL: ' + url 
 	return result
 
@@ -95,6 +95,13 @@ def getExchangeRate():
 	scroll(" 1 USD= "+ ("%0.2f" % float(usdeur) ) + " EUR ")
 	return None
 
+def getCDRate():
+	#scrape site to get exchange rate
+	result = scrape_url("http://cdrates.bankaholic.com/",'<div class="apr">','</div>')
+	print '1 Ano CD : [ ' + result + " ]"	
+	scroll(" 1 ano CD  "+ result + "%")
+	return None
+	
 ##############################################
 #database functions for logging events and data
 ###########################################
@@ -131,7 +138,7 @@ def writedb_log(topic,payload,source):
 		# Insert record
 		ts = time.gmtime()
 		cursor.execute('''INSERT INTO event (time,topic,payload,source)
-					  VALUES(?,?,?,?)''', (time.strftime("%Y-%m-%d %H:%M:%S", ts),topic,payload,source))
+					  VALUES(?,?,?,?)''', (time.strftime("%Y-%m-%d %H:%M:%S"),topic,payload,source))
 		print 'Inserted Record:'
 		id = cursor.lastrowid
 		print('Last row id: %d' % id)
@@ -160,8 +167,13 @@ def timenow():
 	
 	
 def hournow():
-	print time.strftime("Time:  %H:%M:%S \n")
-	scroll( time.strftime("%H:%M:%S") )
+	print time.strftime("Time:%I%p \n")
+	glow( time.strftime("%I%p"),0.3)
+	return None
+
+def calendardate():
+	print time.strftime("Date: %a - %B %e \n")
+	scroll( time.strftime("%a - %B %e"),0.3)
 	return None
 	
 ##############################################
@@ -194,12 +206,12 @@ def scroll(textmsg="???",bright=0.3,speed=0.04, ignore_quiet_time=False):
 	# Keep track of the X and Y position for the rewind effect
 	pos_x = 0
 
-	textmsg=" "+textmsg+"   "  # append 3 spaces tp message  to prevent wrapping of start
+	textmsg=" "+textmsg+"   ."  # append 3 spaces tp message  to prevent wrapping of start
 	print "Scrolling  %s. size: %d" % (textmsg , len(textmsg  ) )
 	scrollphathd.write_string(textmsg, x=0, y=0, font=font5x7, brightness=bright)
 	
 	# Scroll to the end of the current line
-	msgpixels=len(textmsg)*4
+	msgpixels=len(textmsg)*7
         for y in range(msgpixels):
             scrollphathd.scroll(1, 0)
             pos_x += 1
@@ -225,6 +237,35 @@ def show(textmsg="???",bright=0.5):
 	scrollphathd.show()
 
 	return None
+	
+def glow(textmsg="???",bright=0.5):
+	global scrollphathd
+	
+	#if quiet hours do not display
+	if is_quiet_time():
+		return None
+	
+	 #  Clear buffer
+	scrollphathd.clear()  # so we can rebuild it
+	scrollphathd.show()
+	for glows in range(1,3,1):
+		for x in range(5,0,-1):
+			brite=0.1*x
+			scrollphathd.write_string(textmsg, x=0, y=0, font=font5x7,brightness=brite)
+			scrollphathd.show()
+			time.sleep(0.03)
+		for x in range(1,5,1):
+			brite=0.1*x
+			scrollphathd.write_string(textmsg, x=0, y=0, font=font5x7,brightness=brite)
+			scrollphathd.show()
+			time.sleep(0.03)
+			
+			
+	scrollphathd.clear()  # so we can rebuild it
+	scrollphathd.show()	
+		
+
+	return None	
 	
 def swipe():
 		for x in range(18):
@@ -265,14 +306,14 @@ def on_connect(client, userdata, flags, rc):
 	print("rc: " + str(rc))
 	if  (rc==0):
 	  client.connected_flag=True #set flag
-	  show("RDY",0.2)
+	  glow("RDY",0.2)
 	else:
 	  show(str(rc),0.1 )
 	  
 	# Now lets subscrbe to messages from the broker
 	# Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-	mqtt_topics = ["sensor/door/state", "sensor/door/runtime", "sensor/door/rssi", "sensor/door/bootcount"]
+	mqtt_topics = ["sensor/door/state", "sensor/door/runtime", "sensor/door/rssi", "sensor/door/bootcount","sensor/door/name"]
 	for mqtt_topic in mqtt_topics:
 		client.subscribe(mqtt_topic)
 		print("Subscribing to: "+mqtt_topic)   
@@ -285,6 +326,8 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, obj, msg):
 	global message,mqtt_timer
+	
+	source="unknown"  #client source is not known
 
 	print("on_message Rcvd: "+ msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
 	
@@ -302,12 +345,15 @@ def on_message(client, obj, msg):
 
 	elif msg.topic=="sensor/door/bootcount":
 		print(msg.topic+"  "+message)
+		
+	elif msg.topic=="sensor/door/name":
+		source=message	
 
 	else:
 		print("No Topic/Message hanlder available")
-		show("OK",0.2)
+		scroll("topic? "+msg.topic,0.2)
 
-	writedb_log(msg.topic,message,"source")
+	writedb_log(msg.topic,message,source)
 	mqtt_timer=int(round(time.time() ))
 	return
 	
@@ -360,6 +406,7 @@ def  is_quiet_time():
 ########################
  
 if "__main__" == __name__:
+
 	
 	now=datetime.datetime.now()
 	this_time=now.time()
@@ -400,9 +447,21 @@ if "__main__" == __name__:
 	client.loop_start()	
 	
 	# see schedule for examples https://pypi.python.org/pypi/schedule
-	schedule.every().hour.do(hournow)
-	schedule.every(60).minutes.do(getWeather)
-	schedule.every().hour.do(getExchangeRate)
+
+	
+	schedule.every(180).minutes.do(getWeather)  #every 3 hours show weather
+	
+	schedule.every().day.at("9:00").do(calendardate)
+	schedule.every().day.at("9:00").do(hournow)
+	schedule.every().day.at("12:00").do(hournow)
+	schedule.every().day.at("12:01").do(calendardate)
+	schedule.every().day.at("15:00").do(hournow)
+	schedule.every().day.at("17:00").do(hournow)
+	schedule.every().day.at("19:00").do(hournow)
+	
+
+	schedule.every().day.at("12:01").do(getExchangeRate)
+	schedule.every().day.at("19:01").do(getExchangeRate)
 	
 	
 	try:
