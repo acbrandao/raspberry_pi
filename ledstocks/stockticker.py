@@ -112,7 +112,7 @@ def stockquote(symbol):
     content = urllib2.urlopen(base_url + symbol).read()
     m = re.search('id="ref_(.*?)">(.*?)<', content)
     q = re.search('id="ref_(.*?)_c">(.*?)<', content)
-    z = re.search('id="ref_(.*?)_c">(.*?)<', content)
+    z = re.search('id="ref_(.*?)_cp">(.*?)<', content)
     if m:
 		quote.append( m.group(2) )
 		quote.append( q.group(2) )
