@@ -310,7 +310,7 @@ def on_connect(client, userdata, flags, rc):
 	print("rc: " + str(rc))
 	if  (rc==0):
 	  client.connected_flag=True #set flag
-	  glow("RDY",0.2)
+	  glow("OK",0.2,2)
 	else:
 	  show(str(rc),0.1 )
 	  
