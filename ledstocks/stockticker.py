@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 """StockTicker.Py : A python script that makes use of ScrollPhat HD on Raspberyr Pi to produce live
 near real-tme stock quotes. Makes use of screen scraping (or Stock API) to grab specific stock prices
@@ -7,7 +7,7 @@ and displays them in a standard scrolling ticker format. Heavily borrows code fo
 Pimoroni library to make the ticker have a more animated look.
 
 
-Requires: Raspberry Pi + ScrollPhat HD  	
+Requires: Raspberry Pi + ScrollPhat HD    
 https://learn.pimoroni.com/tutorial/sandyj/getting-started-with-scroll-phat-hd
 
 Author: Abrandao.com
@@ -15,7 +15,7 @@ Date: 2-25-2018
 
 
 """
-
+import operator
 import subprocess
 import socket
 import os
@@ -35,21 +35,21 @@ Advanced scrolling example which displays a message line-by-line
 Press Ctrl+C to exit.
 """)
 
-#Ticker mode: 
-# True: a scrolling ticker refrreshing all stocks continuously
-# False: on specific alert price/percent change  displays stock
-classic_ticker_mode=True # set to False to use Alert style
-
-#Stock symbols Change stock symbols to match your favorites 
-#percent represents trigger % change value stock to appear when classic_ticker_mode=False
-stock_tickers = {'DJI': 0.02, 'F': 0.02, "T": 0.02,"GE": 0.02,"BP": 0.02,"TEVA": 0.02,"ROKU": 0.02,"GRMN": 0.02,"GLD": 0.02 }
-
-
-# Uncomment to rotate 180 degrees, useful for flippy rpi upside down easier with usb cord
+# Uncomment to rotate 180 degrees, useful for flipping rpi0 upside down easier with usb cord
 scrollphathd.rotate(180)
 
+#Ticker mode: 
+# True: a scrolling ticker refrreshing all stocks continuously
+# False: on specific alert price/percent change  displays stock price - silent otherwise
+continuous_ticker=True # set to False to use Alert style
+
+#Stock symbols Change stock symbols to match your favorites 
+# format is {SYMBOL: % change to trigger}
+#percent represents trigger %  PERCENT change value stock to appear when continuous_ticker=False
+stock_tickers = {'DJI': 2.00, 'F': 1.50, "T": 2.50,"GE": 1.50,"BP": 2.0,"TEVA": 2.50,"ROKU": 2.0,"GRMN": 3.0,"GLD": 2.0 }
+
 #Ticker Title
-TICKER_TITLE="Stock Ticker"
+TICKER_TITLE="ACB Stock Ticker"
 
 # Dial down the brightness
 scrollphathd.set_brightness(0.2)
@@ -60,7 +60,7 @@ rewind = True
 #how long to wait secs.  before refreshing data and blanking screen
 REFRESH_INTERVAL = 10
 
-# Delay is the time (in seconds) between each pixel scrolled
+# Speed of ticker Delay is the time (in seconds) between each pixel scrolled
 delay = 0.02
 
 
@@ -78,22 +78,22 @@ def is_connected(ip='172.217.12.142'):
   return False
 
 def scrollLine(msg):
-	scrollphathd.write_string(msg, x=0, y=0, font=font5x7, brightness=0.1)
-	scrollphathd.show()
-	scrollphathd.scroll()
+  scrollphathd.write_string(msg, x=0, y=0, font=font5x7, brightness=0.1)
+  scrollphathd.show()
+  scrollphathd.scroll()
 
-	return   
+  return   
 
 # Call external shell script to try and reconnect...
-# source shell script: https://gist.github.com/mharizanov/5325450	
+# source shell script: https://gist.github.com/mharizanov/5325450 
 def wifi_reconnect():
-	global lines
-	result=False
+  global lines
+  result=False
 
-	print "Trying to reconnect:"
-	scrollLine("Trying to reconnect...Reseting Wlan0 ")
-	# try to recover the connection by resetting the LAN	
-	return result
+  print "Trying to reconnect:"
+  scrollLine("Trying to reconnect...Reseting Wlan0 ")
+  # try to recover the connection by resetting the LAN  
+  return result
 
 
 def stockquote(symbol):
@@ -114,88 +114,95 @@ def stockquote(symbol):
     q = re.search('id="ref_(.*?)_c">(.*?)<', content)
     z = re.search('id="ref_(.*?)_cp">(.*?)<', content)
     if m:
-		quote.append( m.group(2) )
-		quote.append( q.group(2) )
-		quote.append( z.group(2) )
+      quote.append( m.group(2) )
+      quote.append( q.group(2) )
+      quote.append( z.group(2) )
     else:
-        quote = 'no quote available for: ' + symbol
+      quote = 'no quote available for: ' + symbol
     return quote
 
-	
+  
 def get_stock_quotes():
-	global classic_ticker_mode
-	stock_quote_lines=''
-	
-	for symbol, pct in stock_tickers.items():
-		stock_val =stockquote(symbol)
-		print "Stocks:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]
+  global continuous_ticker,stock_tickers
+  stock_quote_lines=''
 
-		if classic_ticker_mode==True :
-			stock_quote_lines+= symbol+" "+ stock_val[0] + " "+ stock_val[1] + " | "
-		else:
-			if stock_val[3] >= pct or stock_val[3] <= pct:
-				stock_quote_lines+= symbol+" "+ stock_val[0] + " "+ stock_val[1] + " "
+  print "Getting Stock prices mode: (Continuos "+str(continuous_ticker)+")"
 
-	return stock_quote_lines
-	
+
+  for symbol, pct in stock_tickers.items():
+    stock_val =stockquote(symbol)
+  
+    if continuous_ticker==True :   #continuosly display prices
+      stock_quote_lines+= symbol+" "+ stock_val[0] + " "+ stock_val[1] + "  ."
+      print "Stocks:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+"%"
+    
+    else:
+      pct_change =float(stock_val[2].replace("%", "").replace("(", "").replace(")", "") )  #replace 
+      print "web:"+stock_val[2]+"  "+str(pct_change) + "  threshold: "+str(pct) 
+      if abs(pct_change) >= pct :  #did the stock change +/- more than % trigger?
+        stock_quote_lines+= symbol+" "+ stock_val[0] + " "+ stock_val[1] + " " +stock_val[2]+ "  ."
+        print "Stocks:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+" ("+str(pct)+")"
+
+  return stock_quote_lines
+  
 
 
 
 def  load_data():
-	# empty lcd buffer
-	lines[:] = []
+  # empty lcd buffer
+  lines[:] = []
 
-	print  "Gettig Ticker DATA ..."	
-	lines.append(TICKER_TITLE )
-
-	#get Stock quotes
-	lines.append( get_stock_quotes() )
-	
-	now = datetime.now().strftime('%m-%d-%y %H:%M %p')
-	lines.append(now )
-	print "Time: "+now
-	return
+  #get Stock quotes
+  lines.append( get_stock_quotes() )
+  
+  now = datetime.now().strftime('%m-%d-%y %H:%M %p')
+  lines.append(now )
+  print "Time: "+now
+  return
 
 
 def startlcd():
-	global scrollphathd, lines , lengths, line_height,offset_left
-	
+  global scrollphathd, lines , lengths, line_height,offset_left
+  
 #  Clear buffer
-	scrollphathd.clear()  # so we can rebuild it
-	scrollphathd.show()
+  scrollphathd.clear()  # so we can rebuild it
+  scrollphathd.show()
+
+  print  "Gettig Ticker DATA ..." 
+  lines.append(TICKER_TITLE )
 
 
-	if is_connected() == False:
-		print "No Internet connection available. No data to display" #getip addressss
-		lines.append("IP: "+getip_address() )
-		lines.append("NO Internet Connection.");
+  if is_connected() == False:
+    print "No Internet connection available. No data to display" #getip addressss
+    lines.append("IP: "+getip_address() )
+    lines.append("NO Internet Connection.")
+    scrollLine(lines)
 
-		scrollLine(lines);
-	else:
-		print "Initial data load"
-		load_data()
+  else:
+    print "Initial data load"
+    load_data()
 
 
 # Determine how far apart each line should be spaced vertically
-	line_height = scrollphathd.DISPLAY_HEIGHT + 2
+  line_height = scrollphathd.DISPLAY_HEIGHT + 2
 
-	# Store the left offset for each subsequent line (starts at the end of the last line)
-	offset_left = 0
+  # Store the left offset for each subsequent line (starts at the end of the last line)
+  offset_left = 0
 
-	# Draw each line in lines to the Scroll pHAT HD buffer
-	# scrollphathd.write_string returns the length of the written string in pixels
-	# we can use this length to calculate the offset of the next line
-	# and will also use it later for the scrolling effect.
-	lengths = [0] * len(lines)
+  # Draw each line in lines to the Scroll pHAT HD buffer
+  # scrollphathd.write_string returns the length of the written string in pixels
+  # we can use this length to calculate the offset of the next line
+  # and will also use it later for the scrolling effect.
+  lengths = [0] * len(lines)
 
-	for line, text in enumerate(lines):
-		lengths[line] = scrollphathd.write_string(text, x=offset_left, y=line_height * line)
-		offset_left += lengths[line]
+  for line, text in enumerate(lines):
+    lengths[line] = scrollphathd.write_string(text, x=offset_left, y=line_height * line)
+    offset_left += lengths[line]
 
-	# This adds a little bit of horizontal/vertical padding into the buffer at
-	# the very bottom right of the last line to keep things wrapping nicely.
-	scrollphathd.set_pixel(offset_left - 1, (len(lines) * line_height) - 1, 0)
-	return
+  # This adds a little bit of horizontal/vertical padding into the buffer at
+  # the very bottom right of the last line to keep things wrapping nicely.
+  scrollphathd.set_pixel(offset_left - 1, (len(lines) * line_height) - 1, 0)
+  return
 
 
 #check for hardware and make sure no GPIO / hardware faults
@@ -222,7 +229,7 @@ except:
 startlcd()
 
 
-	
+  
 while True:
     # Reset the animation
     scrollphathd.scroll_to(0, 0)
