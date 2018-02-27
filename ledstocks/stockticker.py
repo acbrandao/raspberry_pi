@@ -41,7 +41,7 @@ scrollphathd.rotate(180)
 #Ticker mode: 
 # True: a scrolling ticker refrreshing all stocks continuously
 # False: on specific alert price/percent change  displays stock price - silent otherwise
-continuous_ticker=True # set to False to use Alert style
+continuous_ticker=False # set to False to use Alert style
 
 #Stock symbols Change stock symbols to match your favorites 
 # format is {SYMBOL: % change to trigger}
@@ -58,7 +58,7 @@ scrollphathd.set_brightness(0.2)
 rewind = True
 
 #how long to wait secs.  before refreshing data and blanking screen
-REFRESH_INTERVAL = 10
+REFRESH_INTERVAL = 60
 
 # Speed of ticker Delay is the time (in seconds) between each pixel scrolled
 delay = 0.02
@@ -99,7 +99,7 @@ def wifi_reconnect():
 def stockquote(symbol):
     quote=[]
 
-    # Stock screen scraping code,  I know this is not the best way ... its quick and dirty :)
+    # Stock web scraping code,  I know this is not the best way ... its quick and dirty :)
     # this can be revised to use an API-key based stock price tool
     # I just wanted something simple and frictionless to get this out.. 
     #  Consider rewriting this section using  https://pypi.python.org/pypi/googlefinance  
@@ -126,7 +126,7 @@ def get_stock_quotes():
   global continuous_ticker,stock_tickers
   stock_quote_lines=''
 
-  print "Getting Stock prices mode: (Continuos "+str(continuous_ticker)+")"
+  print "Getting Stock prices mode: (Continuous "+str(continuous_ticker)+")"
 
 
   for symbol, pct in stock_tickers.items():
