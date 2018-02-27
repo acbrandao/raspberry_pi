@@ -15,10 +15,12 @@ import random
 from threading import Timer,Thread,Event
 import schedule   # install with:   pip install schedule
 import json
+import requests
 import socket
 import re
 import urllib2 
 import sqlite3 #for logging and storing the data
+
 
 # MQTT Specific
 mqtt_broker_ip = "localhost"		# Local MQTT broker
@@ -59,13 +61,13 @@ def scrape_url(url, start_tag,end_tag):
 
 	n2=int(round(time.time() ))
 	if  ( htmlText_cached_time  is  None )  or  ( n2 - htmlText_cached_time >  html_cache_expire_time ) or  (html_last_url <> base_url):
-		print " HTML from WEB"
+		print " HTML from WEB url: "+url
 		htmlText =  urllib2.urlopen(base_url).read()
 		htmlText_cached =htmlText
 		htmlText_cached_time=int(round(time.time() ))
 		html_last_url=base_url
 	else:  
-		print " HTML from CACHE Text"
+		print " HTML from CACHED url: "+url
 		htmlText=htmlText_cached
 
 	try:
@@ -80,10 +82,29 @@ def scrape_url(url, start_tag,end_tag):
 
 def getWeather():
 	#scrape site to get weather
-	temp = scrape_url("http://forecast.weather.gov/MapClick.php?lat=40.732&lon=-74.1742#.Won5xainE2w",'<p class="myforecast-current-lrg">','</p>')
-	temp=temp.replace('&deg;',' ')
-	print 'Newark Weather: [ ' + temp + " ]"	
-	scroll(" Newark: "+temp)
+	try:
+		lines=[]
+		lines.append("Tempo: ")
+		temp = scrape_url("http://forecast.weather.gov/MapClick.php?lat=40.732&lon=-74.1742",'<p class="myforecast-current-lrg">','</p>')
+		temp=temp.replace('&deg;',' ')
+		lines.append('Newark ' + temp  )
+
+		#Read this JSON Feed below and parse
+
+		url1="http://services.sapo.pt/WeatherJSON/GetWeatherForecast/?cityCode=PO0002"
+		print "JSON from web: "+url1
+
+		weather = json.loads(requests.get(url1).text)
+		temp= float(weather["GetWeatherForecastResponse"]["GetWeatherForecastResult"]["CurrentWeather"]["AirTemperature"]);
+		cidade= weather["GetWeatherForecastResponse"]["GetWeatherForecastResult"]["CurrentWeather"]["City"];
+		desc=weather["GetWeatherForecastResponse"]["GetWeatherForecastResult"]["CurrentWeather"]["Description"];
+		lines.append(cidade+" "+  str(round(9.0/5.0*temp+32) )  +"F  "+desc)
+		scrollup(lines )
+
+	except Exception as e:
+		print("Exception getWeather "+str(e) )
+		writedb_log("ERROR",str(e),"PYTHON")
+
 
 	return None
 
@@ -91,8 +112,8 @@ def getWeather():
 def getExchangeRate():
 	#scrape site to get exchange rate
 	usdeur = scrape_url("https://www.bloomberg.com/quote/USDEUR:CUR",'<div class="price">','</div>')
-	print 'EURO->USD: [ ' + usdeur + " ]"	
-	scroll(" 1 USD= "+ ("%0.2f" % float(usdeur) ) + " EUR ")
+	print 'EURO->USD: [ ' + str(round( float(usdeur),2)) + " ]"	
+	scroll(" 1 Dollar = "+ str(round( float(usdeur),2)) + " Euros ")
 	return None
 
 def getCDRate():
@@ -103,7 +124,7 @@ def getCDRate():
 	return None
 	
 ##############################################
-#database functions for logging events and data
+#SQLite database functions for logging events and data
 ###########################################
 def setup_db(dbname='/home/pi/log.db'):
 	db=None
@@ -139,9 +160,8 @@ def writedb_log(topic,payload,source):
 		ts = time.gmtime()
 		cursor.execute('''INSERT INTO event (time,topic,payload,source)
 					  VALUES(?,?,?,?)''', (time.strftime("%Y-%m-%d %H:%M:%S"),topic,payload,source))
-		print 'Inserted Record:'
 		id = cursor.lastrowid
-		print('Last row id: %d' % id)
+		print('Inserted Record: row id: %d' % id)
 
 		db.commit()
 	# Catch the exception
@@ -171,6 +191,15 @@ def hournow():
 	glow( time.strftime("%I%p"),0.3)
 	return None
 
+def hournowcity():
+	lines=[]
+	lines.append("Horas")
+	lines.append("Newark "+time.strftime("%I:%M %p") )
+	lines.append("Portugal: "+datetime.datetime.utcnow().strftime("%I:%M %p") )
+
+	scrollup(lines)
+
+
 def calendardate():
 	print time.strftime("Date: %a - %B %e \n")
 	scroll( time.strftime("%a - %B %e"),0.3)
@@ -179,6 +208,67 @@ def calendardate():
 ##############################################
 # ScrollPhat HD effects and Message routines
 ###########################################
+#taken from advanced Acrolling example to scrollup by one line
+def scrollup(lines, ignore_quiet_time=False):  
+
+	#if quiet hours do not display
+	if is_quiet_time() and ignore_quiet_time==False:
+		return None
+
+	# Delay is the time (in seconds) between each pixel scrolled
+	delay = 0.03
+	scrollphathd.set_brightness(0.2)
+
+	# Determine how far apart each line should be spaced vertically
+	line_height = scrollphathd.DISPLAY_HEIGHT + 2
+
+	# Store the left offset for each subsequent line (starts at the end of the last line)
+	offset_left = 0
+
+	# Draw each line in lines to the Scroll pHAT HD buffer
+	# scrollphathd.write_string returns the length of the written string in pixels
+	# we can use this length to calculate the offset of the next line
+	# and will also use it later for the scrolling effect.
+	lengths = [0] * len(lines)
+
+	for line, text in enumerate(lines):
+	    lengths[line] = scrollphathd.write_string(text, x=offset_left, y=line_height * line)
+	    offset_left += lengths[line]
+	    print text
+
+	# This adds a little bit of horizontal/vertical padding into the buffer at
+	# the very bottom right of the last line to keep things wrapping nicely.
+	scrollphathd.set_pixel(offset_left - 1, (len(lines) * line_height) - 1, 0)
+
+    # Reset the animation
+	scrollphathd.scroll_to(0, 0)
+	scrollphathd.show()
+
+	# Keep track of the X and Y position for the rewind effect
+	pos_x = 0
+	pos_y = 0
+
+	for current_line, line_length in enumerate(lengths):
+		# Delay a slightly longer time at the start of each line
+		time.sleep(delay*10)
+
+		# Scroll to the end of the current line
+		for y in range(line_length):
+			scrollphathd.scroll(1, 0)
+			pos_x += 1
+			time.sleep(delay)
+			scrollphathd.show()
+	
+		for x in range(line_height):
+			scrollphathd.scroll(0, 1)
+			pos_y += 1
+			scrollphathd.show()
+			time.sleep(delay)
+
+	scrollphathd.fill(0)
+	scrollphathd.show()	
+	print "Ending scrollup() "
+
 
 def clocktick():
 # Display the hour as two digits
@@ -415,9 +505,20 @@ if "__main__" == __name__:
 	now=datetime.datetime.now()
 	this_time=now.time()
 
+	# Testing methods go here...	
+	#getExchangeRate()	
+	#hournow()
+	#calendardate()
+	#getWeather()
+	#hournowcity()
+	#print "EndTesting"
+	#quit()
+
 	ip_address= get_ip_address('wlan0')
 	writedb_log("STARTUP",ip_address,"SYSTEM")
 	
+
+
 	print("Now  :"+this_time.strftime("%H:%M:%S") )
 	print("Start:"+quiet_start.strftime("%H:%M:%S") )
 	print("End  :"+quiet_end.strftime("%H:%M:%S") )
@@ -457,27 +558,25 @@ if "__main__" == __name__:
 	client.loop_start()	
 	
 	# see schedule for examples https://pypi.python.org/pypi/schedule
+	
 
-	
-	schedule.every(180).minutes.do(getWeather)  #every 3 hours show weather
-	
 	schedule.every().day.at("9:00").do(calendardate)
 	schedule.every().day.at("9:00").do(hournow)
 	schedule.every().day.at("10:00").do(hournow)
 	schedule.every().day.at("11:00").do(hournow)
-	schedule.every().day.at("12:00").do(hournow)
+	schedule.every().day.at("12:00").do(hournowcity)
 	schedule.every().day.at("12:01").do(calendardate)
  	schedule.every().day.at("13:00").do(hournow)
  	schedule.every().day.at("14:00").do(hournow)
 	schedule.every().day.at("15:00").do(hournow)
  	schedule.every().day.at("16:00").do(hournow)
-	schedule.every().day.at("17:00").do(hournow)
+	schedule.every().day.at("17:00").do(hournowcity)
 	schedule.every().day.at("19:00").do(hournow)
 	
 
-	schedule.every().day.at("12:01").do(getExchangeRate)
-	schedule.every().day.at("19:01").do(getExchangeRate)
-	
+	schedule.every(180).minutes.do(getWeather)  #every 3 hours show weather
+	schedule.every(240).minutes.do(getExchangeRate)  #every 4 hours dispplay
+
 	
 	try:
 		while True:
