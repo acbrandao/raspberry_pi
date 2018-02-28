@@ -41,7 +41,7 @@ git clone <this git hub>
 
 ### Configuring the Stocks
 
-![Stock LED]](http://www.abrandao.com/wp-content/uploads/2018/02/IMG_20180228_120421.jpg)
+![Stock LED](http://www.abrandao.com/wp-content/uploads/2018/02/IMG_20180228_120421.jpg)
 
 Next edit the top of the script to suit your needs:
 
