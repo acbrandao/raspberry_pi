@@ -33,7 +33,7 @@ Once the hardware and is confirmed running,  simmply clone this directory onto y
 and issue the command
 
 ```
-cd /home/pi
+cd /home/pi 
 git clone <this git hub>  
 ```
 
