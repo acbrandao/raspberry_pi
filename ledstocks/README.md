@@ -1,7 +1,6 @@
 # LED StockTicker.PY
 
-![Stockticker LED](http://www.abrandao.com/wp-content/uploads/2018/02/stockticker_scrollphat.gif "Stock Ticker in action")
-(http://www.abrandao.com/wp-content/uploads/2018/02/IMG_20180228_120421.jpg)
+![Stockticker LED](http://www.abrandao.com/wp-content/uploads/2018/02/stockticker_scrollphat.gif)
 
 A simple Stock Ticker python script geared to using the Raspberyr Pi + ScrollPhat HD Led display
 to show live (near real-time)stock quotes. The quotes pullled form Google Finance are updated peridically. 
@@ -42,6 +41,8 @@ git clone <this git hub>
 ```./python stockticker.py```
 
 ### Configuring the Stocks
+
+![Stock LED]](http://www.abrandao.com/wp-content/uploads/2018/02/IMG_20180228_120421.jpg)
 
 Next edit the top of the script to suit your needs:
 
