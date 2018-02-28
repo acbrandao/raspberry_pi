@@ -33,7 +33,7 @@ Once the hardware and is confirmed running,  simmply clone this directory onto y
 
 and issue the command
 
-``
+```
 cd /home/pi
 git clone <this git hub>  
 ```
@@ -43,6 +43,7 @@ git clone <this git hub>
 ### Configuring the Stocks
 
 Next edit the top of the script to suit your needs:
+
 ```
 # Uncomment to rotate 180 degrees, useful for flipping rpi0 upside down easier with usb cord
 scrollphathd.rotate(180)
