@@ -14,7 +14,6 @@ To get started and how to setup the hardware see my blog post here :
 [Blog Post on LED Pi Stock Ticker ](http://www.abrandao.com/2018/02/raspberry-pi-zero-w-led-stock-ticker-code-and-demo/)
 
 
-
 ### Prerequisites
 
   * Raspberry Pi (any model that can use a 40-pin header), for compactnesss a Pi Zero W is best
