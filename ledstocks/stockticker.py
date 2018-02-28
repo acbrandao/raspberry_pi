@@ -45,8 +45,9 @@ continuous_ticker=False # set to False to use Alert style
 
 #Stock symbols Change stock symbols to match your favorites 
 # format is {SYMBOL: % change to trigger}
-#percent represents trigger %  PERCENT change value stock to appear when continuous_ticker=False
-stock_tickers = {'DJI': 2.00, 'F': 1.50, "T": 2.50,"GE": 1.50,"BP": 2.0,"TEVA": 2.50,"ROKU": 2.0,"GRMN": 3.0,"GLD": 2.0 }
+#percent represents trigger % (1.50=1.5%)  PERCENT change value stock to appear when continuous_ticker=False
+#if  sotck price exceeds by -% / +%   it will be displayed
+stock_tickers = {"DJI": 1.50, "F": 1.00, "T": 1.50,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 3.0,"GLD": 2.0 }
 
 #Ticker Title
 TICKER_TITLE="ACB Stock Ticker"
@@ -61,7 +62,7 @@ rewind = True
 REFRESH_INTERVAL = 60
 
 # Speed of ticker Delay is the time (in seconds) between each pixel scrolled
-delay = 0.02
+delay = 0.03
 
 
 #LCD Lines buffer -Global 
@@ -82,7 +83,18 @@ def scrollLine(msg):
   scrollphathd.show()
   scrollphathd.scroll()
 
-  return   
+  return 
+
+def blink(msg):
+  scrollphathd.clear()  # so we can rebuild it
+  scrollphathd.show()
+  time.sleep(0.5) 
+  scrollphathd.write_string( msg, x=0, y=0)
+  scrollphathd.show()
+  time.sleep(0.5)
+  scrollphathd.fill(0)
+  scrollphathd.show()
+  return    
 
 # Call external shell script to try and reconnect...
 # source shell script: https://gist.github.com/mharizanov/5325450 
@@ -140,13 +152,11 @@ def get_stock_quotes():
       pct_change =float(stock_val[2].replace("%", "").replace("(", "").replace(")", "") )  #replace 
       print "web:"+stock_val[2]+"  "+str(pct_change) + "  threshold: "+str(pct) 
       if abs(pct_change) >= pct :  #did the stock change +/- more than % trigger?
-        stock_quote_lines+= symbol+" "+ stock_val[0] + " "+ stock_val[1] + " " +stock_val[2]+ "  ."
-        print "Stocks:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+" ("+str(pct)+")"
+        stock_quote_lines+= symbol+" "+ stock_val[0] + " "+ stock_val[1] + " " +stock_val[2]+ " "+symbol
+        print "Stocks:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+" ("+str(pct)+") "+symbol
 
   return stock_quote_lines
   
-
-
 
 def  load_data():
   # empty lcd buffer
@@ -154,9 +164,26 @@ def  load_data():
 
   #get Stock quotes
   lines.append( get_stock_quotes() )
+  lines.append(" ")
+
+  #print time.strftime("%Y-%m-%d %H:%M \n")
+
+  #Every hour on the hour   blink time
+  onthehour= datetime.now().strftime('%M')
+  if  onthehour=="00" :
+     #  Blink on the hours
+    for y in range(5):
+      blink( datetime.now().strftime('%H%p') )
+        
   
-  now = datetime.now().strftime('%m-%d-%y %H:%M %p')
-  lines.append(now )
+  now = datetime.now().strftime('%m-%d-%y %H:%M %p')    
+ 
+  print "Lines listed: "+str(len(lines))	
+  if len(lines) > 2:  #do we have content if so s then display time
+      lines.append(now )
+      lines.append(" ")
+
+
   print "Time: "+now
   return
 
