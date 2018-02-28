@@ -152,7 +152,7 @@ def get_stock_quotes():
       pct_change =float(stock_val[2].replace("%", "").replace("(", "").replace(")", "") )  #replace 
       print "web:"+stock_val[2]+"  "+str(pct_change) + "  threshold: "+str(pct) 
       if abs(pct_change) >= pct :  #did the stock change +/- more than % trigger?
-        stock_quote_lines+= symbol+" "+ stock_val[0] + " "+ stock_val[1] + " " +stock_val[2]+ " "+symbol
+        stock_quote_lines+= " "+symbol+" "+ stock_val[0] + " "+ stock_val[1] + " " +stock_val[2]+ "  "
         print "Stocks:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+" ("+str(pct)+") "+symbol
 
   return stock_quote_lines
