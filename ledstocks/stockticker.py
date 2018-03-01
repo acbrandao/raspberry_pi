@@ -15,6 +15,9 @@ Date: 2-25-2018
 
 
 """
+import fcntl
+import struct
+import socket
 import operator
 import subprocess
 import socket
@@ -38,10 +41,16 @@ Press Ctrl+C to exit.
 # Uncomment to rotate 180 degrees, useful for flipping rpi0 upside down easier with usb cord
 scrollphathd.rotate(180)
 
+
+#how long to wait secs.  before refreshing data and blanking screen
+REFRESH_INTERVAL = 180 #defult every  three  minutes
+
+
 #Ticker mode: 
 # True: a scrolling ticker refrreshing all stocks continuously
 # False: on specific alert price/percent change  displays stock price - silent otherwise
 continuous_ticker=False # set to False to use Alert style
+
 
 #Stock symbols Change stock symbols to match your favorites 
 # format is {SYMBOL: % change to trigger}
@@ -58,15 +67,26 @@ scrollphathd.set_brightness(0.2)
 # If rewind is True the scroll effect will rapidly rewind after the last line
 rewind = True
 
-#how long to wait secs.  before refreshing data and blanking screen
-REFRESH_INTERVAL = 60
 
 # Speed of ticker Delay is the time (in seconds) between each pixel scrolled
 delay = 0.03
 
+#display certain items, like title or ip address one time in display
+display_once=True
 
-#LCD Lines buffer -Global 
+#LCD Lines buffer -Global lines buffer to hold scrolling text
 lines = []
+
+
+def get_ip_address(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(
+        s.fileno(),
+        0x8915,  # SIOCGIFADDR
+        struct.pack('256s', ifname[:15])
+    )[20:24])
+
+
 
 def is_connected(ip='172.217.12.142'):  
   try:
@@ -85,6 +105,21 @@ def scrollLine(msg):
 
   return 
 
+
+def swipe():
+
+	print "Swiping the display..."	
+
+	for x in range(18):
+            scrollphathd.fill(0.2,0,0,x,7)
+            scrollphathd.show()
+        for x in range(18):
+            scrollphathd.fill(0,0,0,x,7)
+            scrollphathd.show()
+
+	print "End Swipe the display..."	
+	return None
+
 def blink(msg):
   scrollphathd.clear()  # so we can rebuild it
   scrollphathd.show()
@@ -99,7 +134,6 @@ def blink(msg):
 # Call external shell script to try and reconnect...
 # source shell script: https://gist.github.com/mharizanov/5325450 
 def wifi_reconnect():
-  global lines
   result=False
 
   print "Trying to reconnect:"
@@ -149,24 +183,37 @@ def get_stock_quotes():
       print "Stocks:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+"%"
     
     else:
-      pct_change =float(stock_val[2].replace("%", "").replace("(", "").replace(")", "") )  #replace 
-      print "web:"+stock_val[2]+"  "+str(pct_change) + "  threshold: "+str(pct) 
+      try:
+      	pct_change =float(stock_val[2].replace("%", "").replace("(", "").replace(")", "") )  #replace 
+      except Exception as e:
+      	print e
+      	pct_change =0.0
+
+
+      print symbol+"::"+stock_val[2]+"  "+str(pct_change) + "  threshold: "+str(pct) 
       if abs(pct_change) >= pct :  #did the stock change +/- more than % trigger?
         stock_quote_lines+= " "+symbol+" "+ stock_val[0] + " "+ stock_val[1] + " " +stock_val[2]+ "  "
-        print "Stocks:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+" ("+str(pct)+") "+symbol
+        print "<<DISPLAY>>:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+" ("+str(pct)+") "+symbol
 
   return stock_quote_lines
-  
 
 def  load_data():
+  global display_once, lines
+
   # empty lcd buffer
   lines[:] = []
 
+  #one time display
+  if display_once==True:
+	  print  "Gettig Ticker DATA ..." 
+	  lines.append(TICKER_TITLE )
+	  ip_address=get_ip_address("wlan0")
+	  print "IP: "+ip_address
+	  lines.append("IP: "+ip_address )
+	  display_once=False  #now no longer display
+
   #get Stock quotes
   lines.append( get_stock_quotes() )
-  lines.append(" ")
-
-  #print time.strftime("%Y-%m-%d %H:%M \n")
 
   #Every hour on the hour   blink time
   onthehour= datetime.now().strftime('%M')
@@ -177,123 +224,123 @@ def  load_data():
         
   
   now = datetime.now().strftime('%m-%d-%y %H:%M %p')    
+  lines.append(now )
  
-  print "Lines listed: "+str(len(lines))	
-  if len(lines) > 2:  #do we have content if so s then display time
-      lines.append(now )
-      lines.append(" ")
-
-
   print "Time: "+now
-  return
+ 
+
+  return lines
 
 
-def startlcd():
-  global scrollphathd, lines , lengths, line_height,offset_left
-  
-#  Clear buffer
-  scrollphathd.clear()  # so we can rebuild it
-  scrollphathd.show()
+def startled():
+	global scrollphathd, lines ,lengths,line_height
 
-  print  "Gettig Ticker DATA ..." 
-  lines.append(TICKER_TITLE )
+	#  Clear buffer
+	scrollphathd.clear()  # so we can rebuild it
+	scrollphathd.show()
 
-
-  if is_connected() == False:
-    print "No Internet connection available. No data to display" #getip addressss
-    lines.append("IP: "+getip_address() )
-    lines.append("NO Internet Connection.")
-    scrollLine(lines)
-
-  else:
-    print "Initial data load"
-    load_data()
+	if is_connected() == False:
+		print "No Internet connection available. No data to display" #getip addressss
+		lines.append("IP: "+get_ip_address("wlan0") )
+		lines.append("NO Internet Connection.")
+		scrollLine(lines)
+	else:
+		print "Initial data load"
+		load_data()
 
 
-# Determine how far apart each line should be spaced vertically
-  line_height = scrollphathd.DISPLAY_HEIGHT + 2
 
-  # Store the left offset for each subsequent line (starts at the end of the last line)
-  offset_left = 0
+	#code below directly from Pimoroni Advanced-scrolling example
+	# Determine how far apart each line should be spaced vertically
+  	line_height = scrollphathd.DISPLAY_HEIGHT + 2
 
-  # Draw each line in lines to the Scroll pHAT HD buffer
-  # scrollphathd.write_string returns the length of the written string in pixels
-  # we can use this length to calculate the offset of the next line
-  # and will also use it later for the scrolling effect.
-  lengths = [0] * len(lines)
+	# Store the left offset for each subsequent line (starts at the end of the last line)
+	offset_left = 0
 
-  for line, text in enumerate(lines):
-    lengths[line] = scrollphathd.write_string(text, x=offset_left, y=line_height * line)
-    offset_left += lengths[line]
+	# Draw each line in lines to the Scroll pHAT HD buffer
+	# scrollphathd.write_string returns the length of the written string in pixels
+	# we can use this length to calculate the offset of the next line
+	# and will also use it later for the scrolling effect.
+	lengths = [0] * len(lines)
 
-  # This adds a little bit of horizontal/vertical padding into the buffer at
-  # the very bottom right of the last line to keep things wrapping nicely.
-  scrollphathd.set_pixel(offset_left - 1, (len(lines) * line_height) - 1, 0)
-  return
+	print "Content of lines buffer: "+str(len(lines))
+	print lines
 
 
-#check for hardware and make sure no GPIO / hardware faults
-  
-try:  
-   print "Checking Hardware ScrollPhat HD is availble"  
-   scrollphathd.scroll_to(0, 0)
-   print " Passed!"  
+	for line, text in enumerate(lines):
+		lengths[line] = scrollphathd.write_string(text, x=offset_left, y=line_height * line)
+		offset_left += lengths[line]
 
-    
-except KeyboardInterrupt:  
-    # here you put any code you want to run before the program   
-    # exits when you press CTRL+C  
-    print "\n", counter # print value of counter  
-  
-except:  
-    # this catches ALL other exceptions including errors.  
-    print "Hardware Error SchrollPhat HD is no responding. Check hardware."  
-  
-#finally:  
-#    GPIO.cleanup() # this ensures a clean exit  
+		print "Adding to buffer: "+text
+		# This adds a little bit of horizontal/vertical padding into the buffer at
+		# the very bottom right of the last line to keep things wrapping nicely.
+		scrollphathd.set_pixel(offset_left - 1, (len(lines) * line_height) - 1, 0)
 
-### Start main loading 
-startlcd()
+	
+	return; #end of start_lcd
 
 
-  
-while True:
-    # Reset the animation
-    scrollphathd.scroll_to(0, 0)
-    scrollphathd.show()
 
-    # Keep track of the X and Y position for the rewind effect
-    pos_x = 0
-    pos_y = 0
+#Start of the Main Program Logic , setup display and scroll vairables
+if __name__ == "__main__":
 
-    for current_line, line_length in enumerate(lengths):
-        # Delay a slightly longer time at the start of each line
-        time.sleep(delay*10)
 
-        # Scroll to the end of the current line
-        for y in range(line_length):
-            scrollphathd.scroll(1, 0)
-            pos_x += 1
-            time.sleep(delay)
-            scrollphathd.show()
+	#check for hardware and make sure no GPIO / hardware faults
 
-        # If we're currently on the very last line and rewind is True
-        # We should rapidly scroll back to the first line.
-        if current_line == len(lines) - 1 and rewind:
-           # for y in range(pos_y):
-           #     scrollphathd.scroll(-int(pos_x/pos_y), -1)
-           #     scrollphathd.show()
-           #     time.sleep(delay)
-           print "Sleeping for "+str(REFRESH_INTERVAL)+" seconds"
-           time.sleep(REFRESH_INTERVAL)   
-           print "Awake refreshing data..."
-           startlcd()  #reload new data into LCD display
-         
+	try:  
+		print "Checking Hardware ScrollPhat HD is availble"  
+		scrollphathd.scroll_to(0, 0)
+		print " Passed!"  
+	except KeyboardInterrupt:  
+		# here you put any code you want to run before the program   
+		# exits when you press CTRL+C  
+		print "\n", counter # print value of counter  
+	except:  
+		# this catches ALL other exceptions including errors.  
+		print "Hardware Error SchrollPhat HD is no responding. Check hardware."  
 
-        # Otherwise, progress to the next line by scrolling upwards
-        else:
-            for x in range(line_height):
-                scrollphathd.scroll(0, 1)
-                pos_y += 1
-                scrollphathd.show()
-                time.sleep(delay)
+	### Load the main data and LED display
+	startled()
+
+
+
+	#loop and scroll content
+
+	while True:
+		# Reset the animation
+		scrollphathd.scroll_to(0, 0)
+		scrollphathd.show()
+
+		# Keep track of the X and Y position for the rewind effect
+		pos_x = 0
+		pos_y = 0
+
+		for current_line, line_length in enumerate(lengths):
+			# Delay a slightly longer time at the start of each line
+			time.sleep(delay*10)
+			
+			
+		    # Scroll to the end of the current line
+			for y in range(line_length):
+			    scrollphathd.scroll(1, 0)
+			    pos_x += 1
+			    time.sleep(delay)
+			    scrollphathd.show()
+		        
+
+		    # If we're currently on the very last line and rewind is True
+		    # We should rapidly scroll back to the first line.
+			if current_line == len(lines) - 1:
+			   print "Sleeping for "+str(REFRESH_INTERVAL)+" seconds"
+			   time.sleep(REFRESH_INTERVAL)   
+			   print "Awake refreshing data..."
+			   swipe()  #slow a clear animation
+			   startled()  #reload new data into LCD 
+
+			# Otherwise, progress to the next line by scrolling upwards
+			else:
+			    for x in range(line_height):
+			        scrollphathd.scroll(0, 1)
+			        pos_y += 1
+			        scrollphathd.show()
+			        time.sleep(delay)
