@@ -57,7 +57,7 @@ continuous_ticker=False # set to False to use Alert style
 # format is {SYMBOL: % change to trigger}
 #percent represents trigger % (1.50=1.5%)  PERCENT change value stock to appear when continuous_ticker=False
 #if  sotck price exceeds by -% / +%   it will be displayed
-stock_tickers = { "F": 1.00, "T": 1.50,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 3.0,"GLD": 1.00 }
+stock_tickers = { "F": 1.00, "T": 1.00,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 2.0,"GLD": 1.00 }
 
 #Ticker Title
 TICKER_TITLE="ACB Stock Ticker"
