@@ -7,7 +7,7 @@ and displays them in a standard scrolling ticker format. Heavily borrows code fo
 Pimoroni library to make the ticker have a more animated look.
 
 
-Requires: Raspberry Pi + ScrollPhat HD    
+Requires: Raspberry Pi + ScrollPhat HD
 https://learn.pimoroni.com/tutorial/sandyj/getting-started-with-scroll-phat-hd
 
 Author: Abrandao.com
@@ -57,7 +57,7 @@ continuous_ticker=False # set to False to use Alert style
 # format is {SYMBOL: % change to trigger}
 #percent represents trigger % (1.50=1.5%)  PERCENT change value stock to appear when continuous_ticker=False
 #if  sotck price exceeds by -% / +%   it will be displayed
-stock_tickers = { "F": 1.00, "T": 1.50,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 3.0,"GLD": 0.60 }
+stock_tickers = { "F": 1.00, "T": 1.50,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 3.0,"GLD": 1.00 }
 
 #Ticker Title
 TICKER_TITLE="ACB Stock Ticker"
@@ -108,18 +108,24 @@ def scrollLine(msg):
 
 
 def swipe():
+	try:
+		print "Swiping the display..."
+		for z in range(18):
+			scrollphathd.fill(0.6,0,0,z,7)
+			scrollphathd.show()
 
-	print "Swiping the display..."	
+		for z in range(18):
+			scrollphathd.fill(0.1,0,0,z,7)
+			scrollphathd.show()
+	
+		print "End Swipe the display..."
+  	except KeyboardInterrupt:
+		
+		scrollphathd.fill(0)
+		scrollphathd.show()
 
-	for x in range(18):
-            scrollphathd.fill(0.2,0,0,x,7)
-            scrollphathd.show()
-        for x in range(18):
-            scrollphathd.fill(0,0,0,x,7)
-            scrollphathd.show()
+  	return None
 
-	print "End Swipe the display..."	
-	return None
 
 def blink(msg):
   scrollphathd.clear()  # so we can rebuild it
@@ -160,15 +166,15 @@ def stockquote(symbols=None):
 
 	try:
 		base_url ="https://finance.google.com/finance?q="+symbols
-		
+
 		print "fetching... "+base_url
 		headers = { 'User-Agent' : 'Mozilla/5.0' }
 		req = urllib2.Request(base_url, None, headers)
 		html = urllib2.urlopen(req).read()
-	
+
 		#first use reg ex to extract the JSON snippet all the stock quotes we need
 		stock_table = re.search('"rows":(.*?)]}]', html)
- 	
+
 		json_string = stock_table.string[stock_table.start():stock_table.end()]  # extract the json
 		json_string= "{"+ json_string + "}"
 		json_data = json.loads(json_string)  #convert into a json data object
@@ -185,28 +191,29 @@ def get_stock_quotes():
 	global continuous_ticker,stock_tickers
 	stock_quote_lines=''	
 	symbols=''
-	
-	print "Getting Stock prices mode: (Continuous "+str(continuous_ticker)+")"
 
+	print "Getting Stock prices mode: (Continuous "+str(continuous_ticker)+")"
   
 	for symbol, pct in stock_tickers.items():
 		symbols = symbols+ symbol+","  # comma delimited symbols list
-		
 	symbols = symbols.rstrip(',')  #stip off the last comma
-		
+
 	print "Stocks: "+symbols
 	stock_data =stockquote(symbols)  # lets get ALL the stock quotes
+
+
+	print stock_data
 
 	for s in stock_data["rows"]:
 		stock_symbol=s['values'][0]
 		stock_price=s['values'][2]
 		stock_change=s['values'][3]
 		stock_percent=s['values'][5]
-	
+
 		if continuous_ticker==True :   #continuosly display prices
 		  stock_quote_lines+= stock_symbol+" "+ stock_price+ " "+ stock_change + "  ."
 		  print "Stocks:  "+stock_symbol+ " $"+stock_price +"  "+ stock_change +" "+stock_percent+"%"
-		
+
 		else:
 		  try:
 			pct_change =float(stock_percent)  #convert the percentage 
@@ -215,7 +222,6 @@ def get_stock_quotes():
 			print e
 			pct_change =0.0
 
-			
 		  print stock_symbol+"::"+stock_price+"  "+ str(pct_change) + "%  threshold: "+str(stock_tickers[stock_symbol]) 
 		  if abs(pct_change) >= stock_tickers[stock_symbol]:  #did the stock change +/- more than % trigger?
 			stock_quote_lines+= " "+stock_symbol+" "+ stock_price  + " "+stock_change  + " " +stock_percent + "%  "
@@ -265,6 +271,7 @@ def startled():
 	scrollphathd.clear()  # so we can rebuild it
 	scrollphathd.show()
 
+
 	if is_connected() == False:
 		print "No Internet connection available. No data to display" #getip addressss
 		lines.append("IP: "+get_ip_address("wlan0") )
@@ -276,6 +283,7 @@ def startled():
 
 
 
+	lines.append("")   #append a final blank line to cause a scroll off 
 	#code below directly from Pimoroni Advanced-scrolling example
 	# Determine how far apart each line should be spaced vertically
   	line_height = scrollphathd.DISPLAY_HEIGHT + 2
@@ -315,7 +323,7 @@ if __name__ == "__main__":
 
 	try:  
 		print "Checking Hardware ScrollPhat HD is availble"  
-		scrollphathd.scroll_to(0, 0)
+		swipe()
 		print " Passed!"  
 	except KeyboardInterrupt:  
 		# here you put any code you want to run before the program   
@@ -357,10 +365,10 @@ if __name__ == "__main__":
 		    # If we're currently on the very last line and rewind is True
 		    # We should rapidly scroll back to the first line.
 			if current_line == len(lines) - 1:
+			   swipe()
 			   print "Sleeping for "+str(REFRESH_INTERVAL)+" seconds"
 			   time.sleep(REFRESH_INTERVAL)   
 			   print "Awake refreshing data..."
-			   swipe()  #slow a clear animation
 			   startled()  #reload new data into LCD 
 
 			# Otherwise, progress to the next line by scrolling upwards
@@ -370,3 +378,4 @@ if __name__ == "__main__":
 			        pos_y += 1
 			        scrollphathd.show()
 			        time.sleep(delay)
+
