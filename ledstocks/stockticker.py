@@ -15,6 +15,7 @@ Date: 2-25-2018
 
 
 """
+import json
 import fcntl
 import struct
 import socket
@@ -56,7 +57,7 @@ continuous_ticker=False # set to False to use Alert style
 # format is {SYMBOL: % change to trigger}
 #percent represents trigger % (1.50=1.5%)  PERCENT change value stock to appear when continuous_ticker=False
 #if  sotck price exceeds by -% / +%   it will be displayed
-stock_tickers = {"DJI": 1.50, "F": 1.00, "T": 1.50,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 3.0,"GLD": 2.0 }
+stock_tickers = { "F": 1.00, "T": 1.50,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 3.0,"GLD": 0.60 }
 
 #Ticker Title
 TICKER_TITLE="ACB Stock Ticker"
@@ -142,60 +143,85 @@ def wifi_reconnect():
   return result
 
 
-def stockquote(symbol):
-    quote=[]
+def stockquote(symbols=None):
+	global json_data
+	stock_table=''
 
-    # Stock web scraping code,  I know this is not the best way ... its quick and dirty :)
-    # this can be revised to use an API-key based stock price tool
-    # I just wanted something simple and frictionless to get this out.. 
-    #  Consider rewriting this section using  https://pypi.python.org/pypi/googlefinance  
-    # or using pandas-datareader https://github.com/pydata/pandas-datareader 
-    # package allows for reading in data from sources such as Google, Yahoo! Finance, World Bank,…
-    # see example here: https://www.datacamp.com/community/tutorials/finance-python-trading
+	symbol_list= symbols.split(",")
+	
+	if not symbols:
+		return  json.loads('{"Stocks":["none"]}')
 
-    # but for this example lets screen scrape 
-    base_url = 'http://finance.google.com/finance?q='
-    content = urllib2.urlopen(base_url + symbol).read()
-    m = re.search('id="ref_(.*?)">(.*?)<', content)
-    q = re.search('id="ref_(.*?)_c">(.*?)<', content)
-    z = re.search('id="ref_(.*?)_cp">(.*?)<', content)
-    if m:
-      quote.append( m.group(2) )
-      quote.append( q.group(2) )
-      quote.append( z.group(2) )
-    else:
-      quote = 'no quote available for: ' + symbol
-    return quote
+	# Stock web scraping code,  I know this is not the best way ... its quick and dirty :)
+	# this can be revised to use an API-key based stock price tool
+	#  Consider rewriting this section using  https://pypi.python.org/pypi/googlefinance  
+	# or using pandas-datareader https://github.com/pydata/pandas-datareader 
+	# right now we just scrape google page 
+
+	try:
+		base_url ="https://finance.google.com/finance?q="+symbols
+		
+		print "fetching... "+base_url
+		headers = { 'User-Agent' : 'Mozilla/5.0' }
+		req = urllib2.Request(base_url, None, headers)
+		html = urllib2.urlopen(req).read()
+	
+		#first use reg ex to extract the JSON snippet all the stock quotes we need
+		stock_table = re.search('"rows":(.*?)]}]', html)
+ 	
+		json_string = stock_table.string[stock_table.start():stock_table.end()]  # extract the json
+		json_string= "{"+ json_string + "}"
+		json_data = json.loads(json_string)  #convert into a json data object
+		#print json_data
+	except Exception as e: print(e)
+
+
+	return json_data 
+
+
 
   
 def get_stock_quotes():
-  global continuous_ticker,stock_tickers
-  stock_quote_lines=''
+	global continuous_ticker,stock_tickers
+	stock_quote_lines=''	
+	symbols=''
+	
+	print "Getting Stock prices mode: (Continuous "+str(continuous_ticker)+")"
 
-  print "Getting Stock prices mode: (Continuous "+str(continuous_ticker)+")"
-
-
-  for symbol, pct in stock_tickers.items():
-    stock_val =stockquote(symbol)
   
-    if continuous_ticker==True :   #continuosly display prices
-      stock_quote_lines+= symbol+" "+ stock_val[0] + " "+ stock_val[1] + "  ."
-      print "Stocks:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+"%"
-    
-    else:
-      try:
-      	pct_change =float(stock_val[2].replace("%", "").replace("(", "").replace(")", "") )  #replace 
-      except Exception as e:
-      	print e
-      	pct_change =0.0
+	for symbol, pct in stock_tickers.items():
+		symbols = symbols+ symbol+","  # comma delimited symbols list
+		
+	symbols = symbols.rstrip(',')  #stip off the last comma
+		
+	print "Stocks: "+symbols
+	stock_data =stockquote(symbols)  # lets get ALL the stock quotes
 
+	for s in stock_data["rows"]:
+		stock_symbol=s['values'][0]
+		stock_price=s['values'][2]
+		stock_change=s['values'][3]
+		stock_percent=s['values'][5]
+	
+		if continuous_ticker==True :   #continuosly display prices
+		  stock_quote_lines+= stock_symbol+" "+ stock_price+ " "+ stock_change + "  ."
+		  print "Stocks:  "+stock_symbol+ " $"+stock_price +"  "+ stock_change +" "+stock_percent+"%"
+		
+		else:
+		  try:
+			pct_change =float(stock_percent)  #convert the percentage 
+			pct_change =float(stock_percent)  #convert the percentage 
+		  except Exception as e:
+			print e
+			pct_change =0.0
 
-      print symbol+"::"+stock_val[2]+"  "+str(pct_change) + "  threshold: "+str(pct) 
-      if abs(pct_change) >= pct :  #did the stock change +/- more than % trigger?
-        stock_quote_lines+= " "+symbol+" "+ stock_val[0] + " "+ stock_val[1] + " " +stock_val[2]+ "  "
-        print "<<DISPLAY>>:  "+symbol+ " $"+stock_val[0]+"  "+stock_val[1]+" "+stock_val[2]+" ("+str(pct)+") "+symbol
+			
+		  print stock_symbol+"::"+stock_price+"  "+ str(pct_change) + "%  threshold: "+str(stock_tickers[stock_symbol]) 
+		  if abs(pct_change) >= stock_tickers[stock_symbol]:  #did the stock change +/- more than % trigger?
+			stock_quote_lines+= " "+stock_symbol+" "+ stock_price  + " "+stock_change  + " " +stock_percent + "%  "
+			print "<<DISPLAY>>:  "+stock_symbol+ " $"+stock_price+"  "+stock_change+" "+stock_percent+"% ("+str(stock_tickers[stock_symbol])+") "+stock_symbol
 
-  return stock_quote_lines
+	return stock_quote_lines
 
 def  load_data():
   global display_once, lines
