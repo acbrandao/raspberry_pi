@@ -57,7 +57,7 @@ continuous_ticker=False # set to False to use Alert style
 # format is {SYMBOL: % change to trigger}
 #percent represents trigger % (1.50=1.5%)  PERCENT change value stock to appear when continuous_ticker=False
 #if  sotck price exceeds by -% / +%   it will be displayed
-stock_tickers = { "F": 1.00, "T": 1.00,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 2.0,"GLD": 1.00 }
+stock_tickers = { ".DJI" : 0.60 , ".IXIC" : 0.60 , "F": 1.00, "T": 1.00,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 2.0,"GLD": 1.00 }
 
 #Ticker Title
 TICKER_TITLE="ACB Stock Ticker"
@@ -109,7 +109,8 @@ def scrollLine(msg):
 
 def swipe():
 	try:
-		print "Swiping the display..."
+	  print "Swiping the display..."
+	  for x in range (3):	
 		for z in range(18):
 			scrollphathd.fill(0.6,0,0,z,7)
 			scrollphathd.show()
@@ -143,10 +144,19 @@ def blink(msg):
 def wifi_reconnect():
   result=False
 
-  print "Trying to reconnect:"
+  print "Checking connection"
   scrollLine("Trying to reconnect...Reseting Wlan0 ")
   # try to recover the connection by resetting the LAN  
   return result
+
+def internet_connected():
+	result=False
+
+	try:
+		urllib2.urlopen('http://216.58.192.142', timeout=1)
+		return True
+	except urllib2.URLError as err: 
+		return False
 
 
 def stockquote(symbols=None):
@@ -154,9 +164,12 @@ def stockquote(symbols=None):
 	stock_table=''
 
 	symbol_list= symbols.split(",")
+
+	if not internet_connected():
+		return  json.loads('{"Stocks":["OffLine"]}')
 	
 	if not symbols:
-		return  json.loads('{"Stocks":["none"]}')
+		return  json.loads('{"Stocks":["No Symbols"]}')
 
 	# Stock web scraping code,  I know this is not the best way ... its quick and dirty :)
 	# this can be revised to use an API-key based stock price tool
@@ -179,7 +192,9 @@ def stockquote(symbols=None):
 		json_string= "{"+ json_string + "}"
 		json_data = json.loads(json_string)  #convert into a json data object
 		#print json_data
-	except Exception as e: print(e)
+	except Exception as e: 
+		print(e)
+		return  json.loads('{"Stocks":["Data scraoe error: ',e,']}')
 
 
 	return json_data 
@@ -193,13 +208,21 @@ def get_stock_quotes():
 	symbols=''
 
 	print "Getting Stock prices mode: (Continuous "+str(continuous_ticker)+")"
-  
+
+	# how to sort a dictionary
+    # for key in sorted(mydict.iterkeys()):
+    #   print "%s: %s" % (key, mydict[key])
+
 	for symbol, pct in stock_tickers.items():
 		symbols = symbols+ symbol+","  # comma delimited symbols list
 	symbols = symbols.rstrip(',')  #stip off the last comma
 
 	print "Stocks: "+symbols
-	stock_data =stockquote(symbols)  # lets get ALL the stock quotes
+	if  internet_connected():     #lets make sure we're still onlne
+		stock_data =stockquote(symbols)  # lets get ALL the stock quotes
+	else:
+		stock_quote_lines="Offline :: no quotes avaialble -  check Internet connection"
+		return stock_quote_lines
 
 
 	print stock_data
@@ -272,10 +295,10 @@ def startled():
 	scrollphathd.show()
 
 
-	if is_connected() == False:
+	if internet_connected() == False:
 		print "No Internet connection available. No data to display" #getip addressss
 		lines.append("IP: "+get_ip_address("wlan0") )
-		lines.append("NO Internet Connection.")
+		lines.append("OFFLINE: NO Internet Connection.")
 		scrollLine(lines)
 	else:
 		print "Initial data load"
@@ -378,4 +401,3 @@ if __name__ == "__main__":
 			        pos_y += 1
 			        scrollphathd.show()
 			        time.sleep(delay)
-
