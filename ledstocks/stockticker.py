@@ -89,7 +89,7 @@ def get_ip_address(ifname):
 
 
 
-def is_connected(ip='172.217.12.142'):  
+def internet_connected(ip='172.217.12.142'):  
   try:
      # connect to the host -- tells us if the host is actually
     # reachable
@@ -100,7 +100,7 @@ def is_connected(ip='172.217.12.142'):
   return False
 
 def scrollLine(msg):
-  scrollphathd.write_string(msg, x=0, y=0, font=font5x7, brightness=0.1)
+  scrollphathd.write_string(msg, x=0, y=0)
   scrollphathd.show()
   scrollphathd.scroll()
 
@@ -149,15 +149,6 @@ def wifi_reconnect():
   # try to recover the connection by resetting the LAN  
   return result
 
-def internet_connected():
-	result=False
-
-	try:
-		urllib2.urlopen('http://216.58.192.142', timeout=1)
-		return True
-	except urllib2.URLError as err: 
-		return False
-
 
 def stockquote(symbols=None):
 	global json_data
@@ -165,7 +156,7 @@ def stockquote(symbols=None):
 
 	symbol_list= symbols.split(",")
 
-	if not internet_connected():
+	if  internet_connected()==False:
 		return  json.loads('{"Stocks":["OffLine"]}')
 	
 	if not symbols:
@@ -218,7 +209,7 @@ def get_stock_quotes():
 	symbols = symbols.rstrip(',')  #stip off the last comma
 
 	print "Stocks: "+symbols
-	if  internet_connected():     #lets make sure we're still onlne
+	if   internet_connected()==True:     #lets make sure we're still onlne
 		stock_data =stockquote(symbols)  # lets get ALL the stock quotes
 	else:
 		stock_quote_lines="Offline :: no quotes avaialble -  check Internet connection"
@@ -295,7 +286,7 @@ def startled():
 	scrollphathd.show()
 
 
-	if internet_connected() == False:
+	if  internet_connected()==False:
 		print "No Internet connection available. No data to display" #getip addressss
 		lines.append("IP: "+get_ip_address("wlan0") )
 		lines.append("OFFLINE: NO Internet Connection.")
