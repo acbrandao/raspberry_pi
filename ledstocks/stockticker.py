@@ -57,7 +57,7 @@ continuous_ticker=False # set to False to use Alert style
 # format is {SYMBOL: % change to trigger}
 #percent represents trigger % (1.50=1.5%)  PERCENT change value stock to appear when continuous_ticker=False
 #if  sotck price exceeds by -% / +%   it will be displayed
-stock_tickers = { ".DJI" : 0.60 , ".IXIC" : 0.60 , "F": 1.00, "T": 1.00,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 2.0,"GLD": 1.00 }
+stock_tickers = { ".DJI" : 0.75 , ".IXIC" : 0.65 , "F": 1.00, "T": 1.00,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 2.0,"GLD": 1.00 }
 
 #Ticker Title
 TICKER_TITLE="ACB Stock Ticker"
@@ -118,10 +118,10 @@ def swipe():
 		for z in range(18):
 			scrollphathd.fill(0.1,0,0,z,7)
 			scrollphathd.show()
-	
+
 		print "End Swipe the display..."
   	except KeyboardInterrupt:
-		
+
 		scrollphathd.fill(0)
 		scrollphathd.show()
 
@@ -129,15 +129,22 @@ def swipe():
 
 
 def blink(msg):
+  brite=0.1
   scrollphathd.clear()  # so we can rebuild it
   scrollphathd.show()
-  time.sleep(0.5) 
-  scrollphathd.write_string( msg, x=0, y=0)
-  scrollphathd.show()
-  time.sleep(0.5)
-  scrollphathd.fill(0)
-  scrollphathd.show()
-  return    
+  for z in range(10):
+     scrollphathd.write_string( msg, x=0, y=0,brightness=1.0-(brite*z) )
+     scrollphathd.show()
+     time.sleep(0.75)
+     scrollphathd.fill(0)
+     scrollphathd.show()
+     time.sleep(0.25)
+
+  print ".:Blinking:. ",msg
+  return
+
+
+
 
 # Call external shell script to try and reconnect...
 # source shell script: https://gist.github.com/mharizanov/5325450 
@@ -267,13 +274,7 @@ def  load_data():
      #  Blink on the hours
     for y in range(5):
       blink( datetime.now().strftime('%H%p') )
-        
-  
-  now = datetime.now().strftime('%m-%d-%y %H:%M %p')    
-  lines.append(now )
- 
-  print "Time: "+now
- 
+
 
   return lines
 
@@ -366,20 +367,18 @@ if __name__ == "__main__":
 		for current_line, line_length in enumerate(lengths):
 			# Delay a slightly longer time at the start of each line
 			time.sleep(delay*10)
-			
-			
 		    # Scroll to the end of the current line
 			for y in range(line_length):
 			    scrollphathd.scroll(1, 0)
 			    pos_x += 1
 			    time.sleep(delay)
 			    scrollphathd.show()
-		        
 
 		    # If we're currently on the very last line and rewind is True
 		    # We should rapidly scroll back to the first line.
 			if current_line == len(lines) - 1:
-			   swipe()
+			   now = datetime.now().strftime('%I%M')
+			   blink(now)
 			   print "Sleeping for "+str(REFRESH_INTERVAL)+" seconds"
 			   time.sleep(REFRESH_INTERVAL)   
 			   print "Awake refreshing data..."
