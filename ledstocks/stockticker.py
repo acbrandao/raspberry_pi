@@ -27,6 +27,7 @@ import time
 import urllib2
 import re
 from datetime import datetime
+from scrollphathd.fonts import font5x5
 try:
   import scrollphathd
 except ImportError:
@@ -133,12 +134,12 @@ def blink(msg):
   scrollphathd.clear()  # so we can rebuild it
   scrollphathd.show()
   for z in range(10):
-     scrollphathd.write_string( msg, x=0, y=0,brightness=1.0-(brite*z) )
-     scrollphathd.show()
-     time.sleep(0.75)
-     scrollphathd.fill(0)
-     scrollphathd.show()
-     time.sleep(0.25)
+		scrollphathd.write_string(msg,x=0,y=0, font=font5x5,brightness=1.0-(brite*z)    )
+		scrollphathd.show()
+		time.sleep(0.75)
+		scrollphathd.fill(0)
+		scrollphathd.show()
+		time.sleep(0.25)
 
   print ".:Blinking:. ",msg
   return
@@ -377,7 +378,7 @@ if __name__ == "__main__":
 		    # If we're currently on the very last line and rewind is True
 		    # We should rapidly scroll back to the first line.
 			if current_line == len(lines) - 1:
-			   now = datetime.now().strftime('%I%M')
+			   now = datetime.now().strftime('%H:%M')
 			   blink(now)
 			   print "Sleeping for "+str(REFRESH_INTERVAL)+" seconds"
 			   time.sleep(REFRESH_INTERVAL)   
