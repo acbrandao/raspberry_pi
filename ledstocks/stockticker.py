@@ -44,8 +44,9 @@ Press Ctrl+C to exit.
 scrollphathd.rotate(180)
 
 
-#how long to wait secs.  before refreshing data and blanking screen
-REFRESH_INTERVAL = 180 #defult every  three  minutes
+#how long to wait secs.  before refreshing data and blanking screen, 
+# TODO : dynamically adjust polling interval  depending on  how fast a stock price changes.
+REFRESH_INTERVAL = 10 * 60  # default every 10 minutes   (600 seconds)
 
 
 #Ticker mode: 
@@ -54,7 +55,7 @@ REFRESH_INTERVAL = 180 #defult every  three  minutes
 continuous_ticker=False # set to False to use Alert style
 
 
-#Stock symbols Change stock symbols to match your favorites 
+# Stock symbols CHANGE symbols to match your favorites 
 # format is {SYMBOL: % change to trigger}
 #percent represents trigger % (1.50=1.5%)  PERCENT change value stock to appear when continuous_ticker=False
 #if  sotck price exceeds by -% / +%   it will be displayed
@@ -284,6 +285,7 @@ def startled():
 	global scrollphathd, lines ,lengths,line_height
 
 	#  Clear buffer
+	swipe()
 	scrollphathd.clear()  # so we can rebuild it
 	scrollphathd.show()
 
@@ -378,7 +380,7 @@ if __name__ == "__main__":
 		    # If we're currently on the very last line and rewind is True
 		    # We should rapidly scroll back to the first line.
 			if current_line == len(lines) - 1:
-			   now = datetime.now().strftime('%H:%M')
+			   now = datetime.now().strftime('%I:%M')
 			   blink(now)
 			   print "Sleeping for "+str(REFRESH_INTERVAL)+" seconds"
 			   time.sleep(REFRESH_INTERVAL)   
