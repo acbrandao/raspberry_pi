@@ -17,6 +17,7 @@ Date: 3-14-2018
 
 
 """
+import sys
 from pexpect import spawn
 import time
 import datetime
@@ -28,29 +29,32 @@ KEY_LEFT = '\x1b[D'
 KEY_ESCAPE = '\x1b'
 KEY_BACKSPACE = '\x7f'
 
-URL="http://start.att.net"
+URL="www.yahoo.com"
 PortalResponse="Welcome to AT&T Wi-Fi"
 
+launch_url='elinks '+URL 
+print "Spawning:  ", launch_url
+child = spawn(launch_url, encoding='utf-8')
+time.sleep(0.1)
+sys.stdout = open('pexpect_stdout.txt', 'w')
+child.logfile=sys.stdout
 
-print "Spawning:  ", 'elinks ',URL
-child = spawn('elinks '+URL)
-print 'waiting for ',URL,' to load'
-# child.interact()
+# child.interact() #uncomment to interact with elinks, good for debugging
 # child.expect(PortalResponse)
-print("Response: ", child.before)
-time.sleep(0.1)
-print 'Accepting Terms Now Logging in Via keystrokes'
-child.sendline(KEY_DOWN * 5)
-time.sleep(0.1)
+# print("Response: ", child.before)
+time.sleep(0.3)
+#print 'Accepting Terms Now Logging in Via keystrokes'
+for  x in range(5): #send 5 DOWNN press with slight delay in between
+	child.sendline(KEY_DOWN)
+	time.sleep(0.1)   
+
 child.sendline('')
 time.sleep(0.1)
-child.sendline('')  #press ENTER key 2x
-
-#print 'waiting for search results'
-print("Response: ", child.before)
-#child.expect('(*?)')   #expect anything
-#time.sleep(0.1)
-#child.interact() #uncomment to interact with elinks, good for debugging
-print 'quiting'
+child.sendline('Y')  #press ENTER key 2x
+child.sendline('')
+#print("Response: ", child.before)
+child.sendline('')
 child.sendline('q')
-child.wait()
+child.sendline('Y')
+child.close()
+print "Finished:"

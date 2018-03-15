@@ -112,13 +112,13 @@ def scrollLine(msg):
 def swipe():
 	try:
 	  print "Swiping the display..."
-	  for x in range (3):	
+	  for x in range (1):	
 		for z in range(18):
 			scrollphathd.fill(0.6,0,0,z,7)
 			scrollphathd.show()
 
 		for z in range(18):
-			scrollphathd.fill(0.1,0,0,z,7)
+			scrollphathd.fill(0.2,0,0,z,7)
 			scrollphathd.show()
 
 		print "End Swipe the display..."
@@ -131,16 +131,16 @@ def swipe():
 
 
 def blink(msg):
-  brite=0.1
+  brite=0.2
   scrollphathd.clear()  # so we can rebuild it
   scrollphathd.show()
-  for z in range(10):
+  for z in range(5):
 		scrollphathd.write_string(msg,x=0,y=0, font=font5x5,brightness=1.0-(brite*z)    )
 		scrollphathd.show()
-		time.sleep(0.75)
+		time.sleep(1.00)
 		scrollphathd.fill(0)
 		scrollphathd.show()
-		time.sleep(0.25)
+		time.sleep(0.50)
 
   print ".:Blinking:. ",msg
   return
