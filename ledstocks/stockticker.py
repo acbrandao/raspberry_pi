@@ -43,23 +43,23 @@ Press Ctrl+C to exit.
 # Uncomment to rotate 180 degrees, useful for flipping rpi0 upside down easier with usb cord
 scrollphathd.rotate(180)
 
-
 #how long to wait secs.  before refreshing data and blanking screen, 
 # TODO : dynamically adjust polling interval  depending on  how fast a stock price changes.
 REFRESH_INTERVAL = 10 * 60  # default every 10 minutes   (600 seconds)
-
 
 #Ticker mode: 
 # True: a scrolling ticker refrreshing all stocks continuously
 # False: on specific alert price/percent change  displays stock price - silent otherwise
 continuous_ticker=False # set to False to use Alert style
 
-
 # Stock symbols CHANGE symbols to match your favorites 
 # format is {SYMBOL: % change to trigger}
 #percent represents trigger % (1.50=1.5%)  PERCENT change value stock to appear when continuous_ticker=False
 #if  sotck price exceeds by -% / +%   it will be displayed
 stock_tickers = { ".DJI" : 0.75 , ".IXIC" : 0.65 , "F": 1.00, "T": 1.00,"GE": 1.50,"BP": 2.0,"TEVA": 1.50,"ROKU": 2.0,"GRMN": 2.0,"GLD": 1.00 }
+
+# verifies if stock results returned wre validStocks
+validStocks=None
 
 #Ticker Title
 TICKER_TITLE="ACB Stock Ticker"
@@ -160,7 +160,7 @@ def wifi_reconnect():
 
 
 def stockquote(symbols=None):
-	global json_data
+	global json_data, validStocks
 	stock_table=''
 
 	symbol_list= symbols.split(",")
@@ -172,13 +172,19 @@ def stockquote(symbols=None):
 		return  json.loads('{"Stocks":["No Symbols"]}')
 
 	# Stock web scraping code,  I know this is not the best way ... its quick and dirty :)
+	# Caution : Stock Scraping like this doesn't last very long, all major sites will detect frequent
+	# automated requests and return back restriction notice pages.
 	# this can be revised to use an API-key based stock price tool
 	#  Consider rewriting this section using  https://pypi.python.org/pypi/googlefinance  
 	# or using pandas-datareader https://github.com/pydata/pandas-datareader 
 	# right now we just scrape google page 
 
 	try:
-		base_url ="https://finance.google.com/finance?q="+symbols
+		base_url ="https://finance.google.com/finance?q="+symbols  #for google
+		
+		# Alternate URL if you are being blocked by google
+		# https://api.iextrading.com/1.0/stock/market/batch?symbols=FB,TEVA,GE,ROKU&types=quote&range=1m&last=5
+		
 
 		print "fetching... "+base_url
 		headers = { 'User-Agent' : 'Mozilla/5.0' }
@@ -186,15 +192,18 @@ def stockquote(symbols=None):
 		html = urllib2.urlopen(req).read()
 
 		#first use reg ex to extract the JSON snippet all the stock quotes we need
+		#This varies from site to site.
 		stock_table = re.search('"rows":(.*?)]}]', html)
 
 		json_string = stock_table.string[stock_table.start():stock_table.end()]  # extract the json
 		json_string= "{"+ json_string + "}"
 		json_data = json.loads(json_string)  #convert into a json data object
+		validStocks=True
 		#print json_data
 	except Exception as e: 
 		print(e)
-		return  json.loads('{"Stocks":["Data scraoe error: ',e,']}')
+		validStocks=False;
+		return  json.loads('{"Stocks":"Data scrape error: URL may have changed" }')
 
 
 	return json_data 
@@ -226,30 +235,37 @@ def get_stock_quotes():
 
 
 	print stock_data
+	
+	# JSON FORMAT must be for code below to properly parse it
+	#
+	
+	if validStocks==True:
+		for s in stock_data["rows"]:
+			stock_symbol=s['values'][0]
+			stock_price=s['values'][2]
+			stock_change=s['values'][3]
+			stock_percent=s['values'][5]
 
-	for s in stock_data["rows"]:
-		stock_symbol=s['values'][0]
-		stock_price=s['values'][2]
-		stock_change=s['values'][3]
-		stock_percent=s['values'][5]
+			if continuous_ticker==True :   #continuosly display prices
+			  stock_quote_lines+= stock_symbol+" "+ stock_price+ " "+ stock_change + "  ."
+			  print "Stocks:  "+stock_symbol+ " $"+stock_price +"  "+ stock_change +" "+stock_percent+"%"
 
-		if continuous_ticker==True :   #continuosly display prices
-		  stock_quote_lines+= stock_symbol+" "+ stock_price+ " "+ stock_change + "  ."
-		  print "Stocks:  "+stock_symbol+ " $"+stock_price +"  "+ stock_change +" "+stock_percent+"%"
+			else:
+			  try:
+				pct_change =float(stock_percent)  #convert the percentage 
+				pct_change =float(stock_percent)  #convert the percentage 
+			  except Exception as e:
+				print e
+				pct_change =0.0
 
-		else:
-		  try:
-			pct_change =float(stock_percent)  #convert the percentage 
-			pct_change =float(stock_percent)  #convert the percentage 
-		  except Exception as e:
-			print e
-			pct_change =0.0
-
-		  print stock_symbol+"::"+stock_price+"  "+ str(pct_change) + "%  threshold: "+str(stock_tickers[stock_symbol]) 
-		  if abs(pct_change) >= stock_tickers[stock_symbol]:  #did the stock change +/- more than % trigger?
-			stock_quote_lines+= " "+stock_symbol+" "+ stock_price  + " "+stock_change  + " " +stock_percent + "%  "
-			print "<<DISPLAY>>:  "+stock_symbol+ " $"+stock_price+"  "+stock_change+" "+stock_percent+"% ("+str(stock_tickers[stock_symbol])+") "+stock_symbol
-
+			  print stock_symbol+"::"+stock_price+"  "+ str(pct_change) + "%  threshold: "+str(stock_tickers[stock_symbol]) 
+			  if abs(pct_change) >= stock_tickers[stock_symbol]:  #did the stock change +/- more than % trigger?
+				stock_quote_lines+= " "+stock_symbol+" "+ stock_price  + " "+stock_change  + " " +stock_percent + "%  "
+				print "<<DISPLAY>>:  "+stock_symbol+ " $"+stock_price+"  "+stock_change+" "+stock_percent+"% ("+str(stock_tickers[stock_symbol])+") "+stock_symbol
+	else:	
+		stock_quote_lines="** NO STOCKS ** SCRAPE URL BROKEN ** ** NO STOCKS ** SCRAPE URL CHANGED ** "
+		
+	
 	return stock_quote_lines
 
 def  load_data():
@@ -354,8 +370,6 @@ if __name__ == "__main__":
 	### Load the main data and LED display
 	startled()
 
-
-
 	#loop and scroll content
 
 	while True:
@@ -393,4 +407,4 @@ if __name__ == "__main__":
 			        scrollphathd.scroll(0, 1)
 			        pos_y += 1
 			        scrollphathd.show()
-			        time.sleep(delay)
+			        time.sleep(delay) 
