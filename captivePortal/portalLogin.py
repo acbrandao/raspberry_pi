@@ -14,8 +14,6 @@ elinks  Linux terminal text-based web browser (sudo at-get install elinks)
 
 Author: Abrandao.com
 Date: 3-14-2018
-
-
 """
 import sys
 from pexpect import spawn
