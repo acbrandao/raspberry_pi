@@ -1,6 +1,7 @@
 # Python for RaspberryPi Projects
 
-This is my top-level repository of Python Scripts mostyl for my Raspberry Pi projects
+<img align="right" width="300" src="https://github.com/acbrandao/templates/blob/master/img/raspberry-pi-logo.png">
+This is my top-level repository of Python Scripts mostyl for my Raspberry Pi projects. Most of my Raspberry projects this far have dealt with using some sort of Raspberry Pi Phat  such as an LED , Camera etc. to be able to do something novel with the Raspberry pi
 
 ## Getting Started
 
